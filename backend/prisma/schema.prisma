@@ -1,0 +1,282 @@
+# This is your Prisma schema file for Concursos SaaS
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// === TENANTS (Organizações) ===
+model Tenant {
+  id            String   @id @default(uuid())
+  nome          String
+  slug          String   @unique
+  tipo          String   @default("b2c") // b2c, b2b, white_label
+  plano         String   @default("free") // free, basic, pro, premium, enterprise
+  dominioCustom String?  @map("dominio_custom")
+  logoUrl       String?  @map("logo_url")
+  corPrimaria   String   @default("#1E40AF") @map("cor_primaria")
+  ativo         Boolean  @default(true)
+  trialAte      DateTime? @map("trial_ate")
+  criadoEm      DateTime @default(now()) @map("criado_em")
+
+  usuarios      Usuario[]
+  concursos     Concurso[]
+  questoes      Questao[]
+  editais       EditalMonitorado[]
+
+  @@map("tenants")
+}
+
+// === USUÁRIOS ===
+model Usuario {
+  id                  String   @id @default(uuid())
+  tenantId            String   @map("tenant_id")
+  nome                String
+  email               String
+  senhaHash           String   @map("senha_hash")
+  telefone            String?
+  whatsappVerificado  Boolean  @default(false) @map("whatsapp_verificado")
+  whatsappOptIn       Boolean  @default(true) @map("whatsapp_opt_in")
+  role                String   @default("aluno") // admin, professor, aluno
+  ativo               Boolean  @default(true)
+  criadoEm            DateTime @default(now()) @map("criado_em")
+
+  tenant              Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  concursosUsuario    UsuarioConcurso[]
+  respostas           RespostaUsuario[]
+  revisoes            RevisaoPendente[]
+  estatisticas        EstatisticaUsuario[]
+
+  @@unique([tenantId, email])
+  @@map("usuarios")
+}
+
+// === CONCURSOS ===
+model Concurso {
+  id            String   @id @default(uuid())
+  tenantId      String   @map("tenant_id")
+  titulo        String
+  orgao         String
+  banca         String
+  cargo         String
+  salario       Float
+  vagas         Int?
+  nivel         String   // medio, superior
+  regiao        String   @default("nacional")
+  dataProva     DateTime? @map("data_prova")
+  inscricaoFim  DateTime? @map("inscricao_fim")
+  linkInscricao String?  @map("link_inscricao")
+  totalQuestoes Int      @default(0) @map("total_questoes")
+  tempoProva    Int      @default(0) @map("tempo_prova_minutos")
+  notaMinima    Float    @default(0) @map("nota_minima")
+  editalUrl     String?  @map("edital_url")
+  dadosParseados Json?   @map("dados_parseados")
+  status        String   @default("ativo") // ativo, pausado, encerrado
+  criadoEm      DateTime @default(now()) @map("criado_em")
+
+  tenant        Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  disciplinas   Disciplina[]
+  questoes      Questao[]
+  usuarios      UsuarioConcurso[]
+  cronogramas   Cronograma[]
+
+  @@map("concursos")
+}
+
+// === DISCIPLINAS ===
+model Disciplina {
+  id          String   @id @default(uuid())
+  concursoId  String   @map("concurso_id")
+  nome        String
+  peso        Int      @default(1)
+  topicos     String[] @default([])
+  criadoEm    DateTime @default(now()) @map("criado_em")
+
+  concurso    Concurso @relation(fields: [concursoId], references: [id], onDelete: Cascade)
+  questoes    Questao[]
+
+  @@map("disciplinas")
+}
+
+// === QUESTÕES ===
+model Questao {
+  id              String   @id @default(uuid())
+  tenantId        String   @map("tenant_id")
+  concursoId      String?  @map("concurso_id")
+  disciplinaId    String?  @map("disciplina_id")
+  enunciado       String
+  alternativas    Json     // [{letra, texto}]
+  respostaCorreta String   @map("resposta_correta")
+  banca           String?
+  ano             Int?
+  dificuldade     Int      @default(3) // 1-5
+  explicacao      String?
+  tags            String[] @default([])
+  criadoEm        DateTime @default(now()) @map("criado_em")
+
+  tenant          Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  concurso        Concurso? @relation(fields: [concursoId], references: [id])
+  disciplina      Disciplina? @relation(fields: [disciplinaId], references: [id])
+  respostas       RespostaUsuario[]
+  revisoes        RevisaoPendente[]
+
+  @@map("questoes")
+}
+
+// === USUÁRIO x CONCURSO (N:N) ===
+model UsuarioConcurso {
+  id          String   @id @default(uuid())
+  usuarioId   String   @map("usuario_id")
+  concursoId  String   @map("concurso_id")
+  prioridade  Int      @default(1) // 1=alta, 2=media, 3=baixa
+  horasSemana Float    @default(21) @map("horas_semana")
+  status      String   @default("ativo") // ativo, pausado
+  criadoEm    DateTime @default(now()) @map("criado_em")
+
+  usuario     Usuario  @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  concurso    Concurso @relation(fields: [concursoId], references: [id], onDelete: Cascade)
+
+  @@unique([usuarioId, concursoId])
+  @@map("usuario_concursos")
+}
+
+// === RESPOSTAS DO USUÁRIO ===
+model RespostaUsuario {
+  id                  String   @id @default(uuid())
+  usuarioId           String   @map("usuario_id")
+  questaoId           String   @map("questao_id")
+  concursoId          String   @map("concurso_id")
+  alternativaEscolhida String  @map("alternativa_escolhida")
+  correta             Boolean
+  tempoGasto          Int      @map("tempo_gasto_segundos")
+  criadoEm            DateTime @default(now()) @map("criado_em")
+
+  usuario             Usuario  @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  questao             Questao  @relation(fields: [questaoId], references: [id], onDelete: Cascade)
+
+  @@map("respostas_usuario")
+}
+
+// === REVISÃO ESPAÇADA (SM-2) ===
+model RevisaoPendente {
+  id            String   @id @default(uuid())
+  usuarioId     String   @map("usuario_id")
+  questaoId     String   @map("questao_id")
+  dataRevisao   DateTime @map("data_revisao")
+  facilidade    Float    @default(2.5)
+  intervalo     Int      @default(1)
+  dominada      Boolean  @default(false)
+  criadoEm      DateTime @default(now()) @map("criado_em")
+
+  usuario       Usuario  @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  questao       Questao  @relation(fields: [questaoId], references: [id], onDelete: Cascade)
+
+  @@unique([usuarioId, questaoId])
+  @@map("revisoes_pendentes")
+}
+
+// === CRONOGRAMAS ===
+model Cronograma {
+  id            String   @id @default(uuid())
+  usuarioId     String   @map("usuario_id")
+  concursoId    String   @map("concurso_id")
+  editalBaseId  String?  @map("edital_base_id")
+  cronograma    Json     // semanas/dias/atividades
+  geradoEm      DateTime @default(now()) @map("gerado_em")
+  atualizadoEm  DateTime @updatedAt @map("atualizado_em")
+
+  concurso      Concurso @relation(fields: [concursoId], references: [id], onDelete: Cascade)
+
+  @@map("cronogramas")
+}
+
+// === EDITAIS MONITORADOS ===
+model EditalMonitorado {
+  id            String   @id @default(uuid())
+  tenantId      String?  @map("tenant_id")
+  titulo        String
+  orgao         String
+  banca         String?
+  cargo         String?
+  salario       Float?
+  vagas         Int?
+  nivel         String?
+  regiao        String?
+  dataProva     DateTime? @map("data_prova")
+  inscricaoFim  DateTime? @map("inscricao_fim")
+  linkInscricao String?  @map("link_inscricao")
+  pdfUrl        String?  @map("pdf_url")
+  dadosExtraidos Json?   @map("dados_extraidos")
+  fonte         String   // PCI, DOU, Cebraspe, etc.
+  encontradoEm  DateTime @default(now()) @map("encontrado_em")
+  status        String   @default("novo") // novo, notificado, processado
+
+  tenant        Tenant?  @relation(fields: [tenantId], references: [id])
+
+  @@map("editais_monitorados")
+}
+
+// === PREFERÊNCIAS DO ALUNO ===
+model PreferenciaAluno {
+  id                String   @id @default(uuid())
+  usuarioId         String   @unique @map("usuario_id")
+  areasInteresse     String[] @default([]) @map("areas_interesse")
+  niveisAceitos     String[] @default([]) @map("niveis_aceitos")
+  regioesAceitas    String[] @default([]) @map("regioes_aceitas")
+  salarioMinimo     Float    @default(0) @map("salario_minimo")
+  cargosDesejados   String[] @default([]) @map("cargos_desejados")
+  notificarNovos    Boolean  @default(true) @map("notificar_novos")
+  notificarSimilares Boolean @default(true) @map("notificar_similares")
+  notificarPrazo    Boolean  @default(true) @map("notificar_prazo")
+  criadoEm          DateTime @default(now()) @map("criado_em")
+
+  @@map("preferencias_aluno")
+}
+
+// === RESPOSTAS A EDITAIS ===
+model RespostaEdital {
+  id          String   @id @default(uuid())
+  usuarioId   String   @map("usuario_id")
+  editalId    String   @map("edital_id")
+  resposta    String   // interesse, descartado, salvo
+  criadoEm    DateTime @default(now()) @map("criado_em")
+
+  @@unique([usuarioId, editalId])
+  @@map("respostas_edital")
+}
+
+// === MENSAGENS WHATSAPP ===
+model MensagemWhatsApp {
+  id                String    @id @default(uuid())
+  usuarioId         String    @map("usuario_id")
+  tipo              String    // novo_edital, lembrete_revisao, etc.
+  status            String    @default("enviado") // enviado, entregue, lido, falhou
+  whatsappMessageId String?   @map("whatsapp_message_id")
+  enviadoEm         DateTime  @default(now()) @map("enviado_em")
+  entregueEm        DateTime? @map("entregue_em")
+  lidoEm            DateTime? @map("lido_em")
+
+  @@map("mensagens_whatsapp")
+}
+
+// === ESTATÍSTICAS DO USUÁRIO ===
+model EstatisticaUsuario {
+  id              String   @id @default(uuid())
+  usuarioId       String   @map("usuario_id")
+  concursoId      String?  @map("concurso_id")
+  totalQuestoes   Int      @default(0) @map("total_questoes")
+  totalAcertos    Int      @default(0) @map("total_acertos")
+  tempoTotal      Int      @default(0) @map("tempo_total_segundos")
+  streak          Int      @default(0)
+  ultimoEstudo    DateTime? @map("ultimo_estudo")
+  atualizadoEm    DateTime @updatedAt @map("atualizado_em")
+
+  usuario         Usuario  @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@unique([usuarioId, concursoId])
+  @@map("estatisticas_usuario")
+}

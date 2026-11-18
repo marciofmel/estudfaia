@@ -1,0 +1,54 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --color-primary: #1E40AF;
+    --color-primary-light: #3B82F6;
+    --color-accent: #F59E0B;
+    --color-success: #10B981;
+    --color-danger: #EF4444;
+    --color-bg: #F8FAFC;
+    --color-card: #FFFFFF;
+    --color-text: #1E293B;
+    --color-text-light: #64748B;
+    --color-border: #E2E8F0;
+  }
+
+  .dark {
+    --color-bg: #0F172A;
+    --color-card: #1E293B;
+    --color-text: #F1F5F9;
+    --color-text-light: #94A3B8;
+    --color-border: #334155;
+  }
+
+  body {
+    @apply bg-[var(--color-bg)] text-[var(--color-text)] font-sans antialiased;
+  }
+}
+
+@layer components {
+  .card {
+    @apply bg-[var(--color-card)] border border-[var(--color-border)] rounded-xl p-6 shadow-card transition-all duration-200;
+  }
+  .card:hover {
+    @apply shadow-card-hover -translate-y-0.5;
+  }
+  .btn-primary {
+    @apply bg-primary-800 text-white px-6 py-3 rounded-lg font-medium transition-all duration-150 hover:bg-primary-900 active:scale-95;
+  }
+  .btn-secondary {
+    @apply border-2 border-primary-800 text-primary-800 px-6 py-3 rounded-lg font-medium transition-all duration-150 hover:bg-primary-50 active:scale-95;
+  }
+  .btn-accent {
+    @apply bg-amber-500 text-gray-900 px-6 py-3 rounded-lg font-medium transition-all duration-150 hover:bg-amber-600 active:scale-95;
+  }
+  .input {
+    @apply w-full px-4 py-3 border border-[var(--color-border)] rounded-lg bg-[var(--color-card)] text-[var(--color-text)] focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all;
+  }
+  .badge {
+    @apply inline-flex items-center px-3 py-1 rounded-full text-xs font-medium;
+  }
+}
