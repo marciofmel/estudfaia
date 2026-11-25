@@ -1,19 +1,33 @@
 version: "3.8"
 
+# Evolution API exclusiva do ConcursosAI.
+# Porta 8081 (a 8080 já é usada por outro projeto nesta máquina)
+# e Postgres próprio na 5434 para não conflitar com nada.
+
 services:
   evolution-api:
     image: evoapicloud/evolution-api:latest
-    container_name: evolution-api
+    container_name: concursos-evolution
     ports:
-      - "8080:8080"
+      - "8081:8080"
     environment:
-      - SERVER_URL=http://localhost:8080
       - AUTHENTICATION_API_KEY=concursos123
       - DATABASE_ENABLED=true
       - DATABASE_PROVIDER=postgresql
-      - DATABASE_CONNECTION_URI=postgresql://user:pass@postgres:5432/evolution
-      - REDIS_ENABLED=true
-      - REDIS_URI=redis://redis:6379
+      - DATABASE_CONNECTION_URI=postgresql://evolution:evolution@evolution-db:5432/evolution?schema=public
+      - DATABASE_SAVE_DATA_INSTANCE=true
+      - DATABASE_SAVE_DATA_NEW_MESSAGE=true
+      - DATABASE_SAVE_MESSAGE_UPDATE=true
+      - DATABASE_SAVE_DATA_CONTACTS=true
+      - DATABASE_SAVE_DATA_CHATS=true
+      - CACHE_REDIS_ENABLED=false
+      - CACHE_LOCAL_ENABLED=true
+      - CONFIG_SESSION_PHONE_CLIENT=ConcursosAI
+      - CONFIG_SESSION_PHONE_NAME=Chrome
+      - QRCODE_LIMIT=30
+      - LANGUAGE=pt-BR
+      - DEL_INSTANCE=false
+      - LOG_LEVEL=ERROR
       - WEBHOOK_GLOBAL_URL=http://host.docker.internal:8000/webhook/evolution
       - WEBHOOK_GLOBAL_ENABLED=true
       - WEBHOOK_EVENTS_MESSAGES_UPSERT=true
@@ -21,33 +35,22 @@ services:
     volumes:
       - evolution_instances:/evolution/instances
     depends_on:
-      - postgres
-      - redis
+      - evolution-db
     restart: unless-stopped
 
-  postgres:
-    image: postgres:15-alpine
-    container_name: concursos-postgres
+  evolution-db:
+    image: postgres:16-alpine
+    container_name: concursos-evolution-db
     ports:
-      - "5432:5432"
+      - "5434:5432"
     environment:
-      POSTGRES_DB: concursos
-      POSTGRES_USER: user
-      POSTGRES_PASSWORD: pass
+      POSTGRES_DB: evolution
+      POSTGRES_USER: evolution
+      POSTGRES_PASSWORD: evolution
     volumes:
-      - pgdata:/var/lib/postgresql/data
-    restart: unless-stopped
-
-  redis:
-    image: redis:7-alpine
-    container_name: concursos-redis
-    ports:
-      - "6379:6379"
-    volumes:
-      - redisdata:/data
+      - evolution_pgdata:/var/lib/postgresql/data
     restart: unless-stopped
 
 volumes:
   evolution_instances:
-  pgdata:
-  redisdata:
+  evolution_pgdata:

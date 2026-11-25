@@ -23,3 +23,6 @@ Thumbs.db
 # Logs
 *.log
 npm-debug.log*
+# Banco local SQLite
+backend/*.db
+backend/src/*.db
