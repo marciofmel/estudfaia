@@ -6,7 +6,7 @@ venv/
 .env
 
 # Build
-frontend/dist/
+
 backend/dist/
 
 # Docker
