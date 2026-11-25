@@ -71,8 +71,8 @@ async def health():
             "banco": {"questoes": q, "editais": e, "usuarios": u}}
 
 
-@app.get("/")
-async def root():
+@app.get("/api/info")
+async def info():
     return {"message": "ConcursosAI API v1.1", "docs": "/docs",
             "ia": "/api/ia/status", "whatsapp": "/api/whatsapp/diagnostico"}
 
