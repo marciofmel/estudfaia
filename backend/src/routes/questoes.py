@@ -22,7 +22,14 @@ class RespostaRequest(BaseModel):
 
 def _serializar_questao(row):
     q = db.row_to_dict(row)
-    q["alternativas"] = json.loads(q["alternativas"])
+    alts = q["alternativas"]
+    try:
+        alts = json.loads(alts) if isinstance(alts, str) else alts
+    except Exception:
+        alts = {}
+    if isinstance(alts, dict):
+        alts = [{"letra": k, "texto": v} for k, v in alts.items()]
+    q["alternativas"] = alts
     q.pop("correta", None)  # não entrega o gabarito antes da resposta
     return q
 
